@@ -1,5 +1,7 @@
 from astropy.io import fits
 import matplotlib.pyplot as plt
+from matplotlib.patches import Ellipse
+from sorting_routines import *
 import numpy as np
 import sep
 import sys
@@ -67,10 +69,11 @@ print image_min, np.median(p_image), image_max
 
 #print image_min, image_max, image_min_set
 #p_image = image.copy()
+
 p_image = (np.log10(p_image)-np.log10(image_min))/(np.log10(image_max)-np.log10(image_min))
-plt.imshow(p_image,origin="lower")
-plt.colorbar()
-plt.show()
+fig, ax = plt.subplots()
+ax.imshow(p_image,origin="lower")
+#fig.colorbar()
 
 ###########################
 # Begin photometry
@@ -89,20 +92,77 @@ print bkg.globalrms
 bkg_image = bkg.back()
 
 #show the background
-plt.imshow(bkg_image, cmap='gray', origin='lower')
-plt.colorbar()
-plt.show()
+#plt.imshow(bkg_image, cmap='gray', origin='lower')
+#plt.colorbar()
+#plt.show()
 
 #get a background rms image
 bkg_rms_image = bkg.rms()
 
 #show the background rms
-plt.imshow(bkg_rms_image, cmap='gray', origin='lower')
-plt.colorbar()
-plt.show()
+#plt.imshow(bkg_rms_image, cmap='gray', origin='lower')
+#plt.colorbar()
+#plt.show()
 
 #get a background subtracted image
-data_sub = data - bkg
+data_sub = image - bkg
+
+
+###########################
+# Perform object detection
+# see http://sep.readthedocs.io/en/v1.0.x/tutorial.html#Object-detection
+###########################
+
+#sigma_detection = 1.5 #1.5 sigma sources
+sigma_detection = 3.0 #1.5 sigma sources
+
+#identify objects based on sigma detection threshold
+objects = sep.extract(data_sub, sigma_detection, err=bkg.globalrms)
+
+#print the number of objects detected
+print "Detected %d objects..." % len(objects)
+
+#plot an ellipse for each object
+for i in range(len(objects)):
+    e = Ellipse(xy=(objects['x'][i], objects['y'][i]),
+                width=6*objects['a'][i],
+                height=6*objects['b'][i],
+                angle=objects['theta'][i] * 180. / np.pi)
+    e.set_facecolor('none')
+    e.set_edgecolor('red')
+    ax.add_artist(e)
+
+#show the figure
+plt.show()
+
+
+###########################
+# Perform aperture photometry
+# see http://sep.readthedocs.io/en/v1.0.x/tutorial.html#Aperture-photometry
+###########################
+
+r_aperture = 0.3 # arcseconds
+pixel_scale = 0.0317
+n_pixels = r_aperture / pixel_scale
+#aperture correction for 0.3" radius = 0.204462939361
+
+flux, fluxerr, flag = sep.sum_circle(data_sub, objects['x'], objects['y'], n_pixels, err=bkg.globalrms, gain=1.0)
+
+
+#compare with star catalog
+fname_cat = "data/star_simulations/stars_f090w.cat"
+fp = open(fname_cat,"r")
+fl = fp.readlines()
+fp.close()
+mags = np.zeros(len(fl))
+for i in range(len(fl)):
+  mags[i] = l[i].split()[5]
+
+fi = sorted_index(-1.*flux)
+
+for i in range(100):
+  
+
 
 #close the file
 hdulist.close()
