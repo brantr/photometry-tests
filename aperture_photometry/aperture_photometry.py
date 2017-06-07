@@ -41,13 +41,33 @@ print image.shape
 #print the type of the data
 print image.dtype.name
 
-#plot the image
-image_min = image.min()
-image_max = image.max()
-image_min_set = 1./(image_max-image_min)
-print image_min, image_max, image_min_set
+#copy the image
+p_image = image.copy()
+
+#find the minimum of the image
+image_min = p_image.min()
+#shift to zero 
+p_image -= image_min
+#scale the image to have
+#a fixed dynamic range, measured
+#from the max
+image_max = np.mean(p_image) + 10*(np.std(p_image))
+idx = np.where(p_image>image_max)
+if(len(idx)>0):
+  p_image[idx] = image_max
+#dyn_range = 10.
+#image_min_set = image_max/dyn_range
+image_min = np.mean(p_image) - 1*(np.std(p_image))
+if(image_min<1.0e-10):
+  image_min = 1.0e-10
+idx = np.where(p_image<image_min)
+if(len(idx)>0):
+  p_image[idx] = image_min
+print image_min, np.median(p_image), image_max
+
+#print image_min, image_max, image_min_set
 #p_image = image.copy()
-p_image = np.log10(image-image_min+image_min_set)
+p_image = (np.log10(p_image)-np.log10(image_min))/(np.log10(image_max)-np.log10(image_min))
 plt.imshow(p_image,origin="lower")
 plt.colorbar()
 plt.show()
