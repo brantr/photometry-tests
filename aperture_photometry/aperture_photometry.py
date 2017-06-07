@@ -19,10 +19,15 @@ hdulist.info()
 header = hdulist[0].header
 
 #print the header
-#print header
+print header
 
-#get the data from the 0th HDU
-data = hdulist[0].data[0,:,:]
+#get the data from the 0th HDU,
+#allowing for multiple layers in the data
+if (header['NAXIS']==2):
+  data = hdulist[0].data[:,:]
+else:
+  data = hdulist[0].data[0,:,:]
+
 data = data.byteswap().newbyteorder()
 image = data.copy()
 
